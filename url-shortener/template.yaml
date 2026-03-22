@@ -51,7 +51,7 @@ Resources:
       CodeUri: functions/redirect/
       Handler: index.handler
       Policies:
-        - DynamoDBReadPolicy:
+        - DynamoDBCrudPolicy:
             TableName: !Ref UrlMappingsTable
 
 Outputs:

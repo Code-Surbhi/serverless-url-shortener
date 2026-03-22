@@ -103,8 +103,7 @@ async function incrementClickCount(slug) {
   const params = {
     TableName: TABLE_NAME,
     Key: { slug },
-    UpdateExpression:
-      "ADD clicks :increment, lastAccessedAt :timestamp SET lastAccessedAt = :timestamp",
+    UpdateExpression: "ADD clicks :increment SET lastAccessedAt = :timestamp",
     ExpressionAttributeValues: {
       ":increment": 1,
       ":timestamp": new Date().toISOString(),
