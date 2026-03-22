@@ -1,0 +1,66 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Serverless URL Shortener - Production-grade architecture
+
+Globals:
+  Function:
+    Timeout: 10
+    Runtime: nodejs20.x
+    MemorySize: 256
+    Environment:
+      Variables:
+        TABLE_NAME: !Ref UrlMappingsTable
+        NODE_OPTIONS: "--enable-source-maps"
+
+Resources:
+  # DynamoDB Table - stores slug -> URL mappings
+  UrlMappingsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: url-shortener-mappings
+      BillingMode: PAY_PER_REQUEST # Auto-scales, no provisioned capacity needed
+      AttributeDefinitions:
+        - AttributeName: slug
+          AttributeType: S # String type
+      KeySchema:
+        - AttributeName: slug
+          KeyType: HASH # Partition key (primary key)
+      TimeToLiveSpecification:
+        Enabled: true
+        AttributeName: ttl # Auto-delete expired URLs
+      Tags:
+        - Key: Project
+          Value: serverless-url-shortener
+
+  # Lambda Function - Shorten URL
+  ShortenFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: url-shortener-shorten
+      CodeUri: functions/shorten/
+      Handler: index.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UrlMappingsTable
+
+  # Lambda Function - Redirect
+  RedirectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: url-shortener-redirect
+      CodeUri: functions/redirect/
+      Handler: index.handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref UrlMappingsTable
+
+Outputs:
+  UrlMappingsTableName:
+    Description: DynamoDB table storing URL mappings
+    Value: !Ref UrlMappingsTable
+  ShortenFunctionArn:
+    Description: ARN of the Shorten Lambda function
+    Value: !GetAtt ShortenFunction.Arn
+  RedirectFunctionArn:
+    Description: ARN of the Redirect Lambda function
+    Value: !GetAtt RedirectFunction.Arn
