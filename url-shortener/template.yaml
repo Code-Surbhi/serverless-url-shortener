@@ -18,19 +18,30 @@ Resources:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: url-shortener-mappings
-      BillingMode: PAY_PER_REQUEST # Auto-scales, no provisioned capacity needed
+      BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: slug
-          AttributeType: S # String type
+          AttributeType: S
       KeySchema:
         - AttributeName: slug
-          KeyType: HASH # Partition key (primary key)
+          KeyType: HASH
       TimeToLiveSpecification:
         Enabled: true
-        AttributeName: ttl # Auto-delete expired URLs
+        AttributeName: ttl
       Tags:
         - Key: Project
           Value: serverless-url-shortener
+
+  # API Gateway REST API
+  UrlShortenerApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: url-shortener-api
+      StageName: prod
+      Cors:
+        AllowOrigin: "'*'"
+        AllowHeaders: "'Content-Type,Authorization'"
+        AllowMethods: "'GET,POST,OPTIONS'"
 
   # Lambda Function - Shorten URL
   ShortenFunction:
@@ -42,6 +53,13 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref UrlMappingsTable
+      Events:
+        ShortenApi:
+          Type: Api
+          Properties:
+            Path: /shorten
+            Method: POST
+            RestApiId: !Ref UrlShortenerApi
 
   # Lambda Function - Redirect
   RedirectFunction:
@@ -53,8 +71,18 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref UrlMappingsTable
+      Events:
+        RedirectApi:
+          Type: Api
+          Properties:
+            Path: /{slug}
+            Method: GET
+            RestApiId: !Ref UrlShortenerApi
 
 Outputs:
+  ApiGatewayUrl:
+    Description: API Gateway endpoint URL for Prod stage
+    Value: !Sub "https://${UrlShortenerApi}.execute-api.${AWS::Region}.amazonaws.com/prod/"
   UrlMappingsTableName:
     Description: DynamoDB table storing URL mappings
     Value: !Ref UrlMappingsTable
